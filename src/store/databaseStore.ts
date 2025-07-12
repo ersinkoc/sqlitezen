@@ -1,13 +1,17 @@
 import { create } from 'zustand';
 import { SQLiteService } from '@/services/sqliteService';
 import { StorageService } from '@/services/storageService';
-import { DatabaseConnection, QueryResult, QueryHistory } from '@/types/database';
+import { ExportService } from '@/services/exportService';
+import { QueryTemplateService } from '@/services/queryTemplateService';
+import { DatabaseConnection, QueryResult, QueryHistory, SearchOptions, SearchResult, QueryTemplate, ExportOptions } from '@/types/database';
 import { generateUUID } from '@/utils/uuid';
 import toast from 'react-hot-toast';
 
 interface DatabaseState {
   sqliteService: SQLiteService;
   storageService: StorageService;
+  exportService: ExportService;
+  queryTemplateService: QueryTemplateService;
   connections: DatabaseConnection[];
   activeConnectionId: string | null;
   queryHistory: QueryHistory[];
@@ -16,6 +20,9 @@ interface DatabaseState {
   activeResultTab: string;
   structureActiveTab: string;
   schemaVersion: number;
+  showQueryPlan: boolean;
+  searchResults: SearchResult[];
+  queryTemplates: QueryTemplate[];
   
   // Actions
   initialize: () => Promise<void>;
@@ -25,15 +32,27 @@ interface DatabaseState {
   setActiveConnection: (id: string) => void;
   executeQuery: (query: string) => Promise<QueryResult | null>;
   saveDatabase: (id: string) => Promise<void>;
-  exportDatabase: (id: string, format: 'sqlite' | 'sql') => Promise<void>;
+  exportDatabase: (id: string, options: ExportOptions) => Promise<void>;
   setCurrentQuery: (query: string) => void;
   setActiveResultTab: (tab: string) => void;
   setStructureActiveTab: (tab: string) => void;
+  setShowQueryPlan: (show: boolean) => void;
+  searchInDatabase: (options: SearchOptions) => Promise<void>;
+  clearSearchResults: () => void;
+  
+  // Query Templates
+  getQueryTemplates: () => QueryTemplate[];
+  addQueryTemplate: (template: Omit<QueryTemplate, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  applyQueryTemplate: (templateId: string, variables: Record<string, any>) => void;
 }
+
+const queryTemplateService = new QueryTemplateService();
 
 export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   sqliteService: SQLiteService.getInstance(),
   storageService: new StorageService(),
+  exportService: new ExportService(SQLiteService.getInstance()),
+  queryTemplateService,
   connections: [],
   activeConnectionId: null,
   queryHistory: [],
@@ -42,9 +61,12 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   activeResultTab: 'results',
   structureActiveTab: 'columns',
   schemaVersion: 0,
+  showQueryPlan: false,
+  searchResults: [],
+  queryTemplates: queryTemplateService.getTemplates(),
 
   initialize: async () => {
-    const { sqliteService, storageService } = get();
+    const { sqliteService, storageService, queryTemplateService } = get();
     
     try {
       await sqliteService.initialize();
@@ -56,7 +78,9 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
         await sqliteService.createDatabase(dbFile.name, dbFile.data);
       }
       
-      set({ isInitialized: true });
+      // Load query templates
+      const templates = queryTemplateService.getTemplates();
+      set({ isInitialized: true, queryTemplates: templates });
     } catch (error) {
       console.error('Failed to initialize database store:', error);
       toast.error('Failed to initialize database system');
@@ -117,7 +141,7 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   },
 
   executeQuery: async (query: string) => {
-    const { sqliteService, activeConnectionId, queryHistory } = get();
+    const { sqliteService, activeConnectionId, queryHistory, showQueryPlan } = get();
     
     if (!activeConnectionId) {
       toast.error('No active database connection');
@@ -133,7 +157,7 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
     };
 
     try {
-      const result = await sqliteService.executeQuery(activeConnectionId, query);
+      const result = await sqliteService.executeQuery(activeConnectionId, query, showQueryPlan);
       
       historyEntry.success = true;
       historyEntry.result = result;
@@ -188,23 +212,30 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
     }
   },
 
-  exportDatabase: async (id: string, format: 'sqlite' | 'sql') => {
-    const { sqliteService } = get();
+  exportDatabase: async (id: string, options: ExportOptions) => {
+    const { exportService, connections } = get();
     
     try {
-      if (format === 'sqlite') {
-        const data = sqliteService.exportDatabase(id);
-        const blob = new Blob([data], { type: 'application/x-sqlite3' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `database-${new Date().toISOString()}.db`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        // TODO: Implement SQL export
-        toast.error('SQL export not yet implemented');
-      }
+      const connection = connections.find(conn => conn.id === id);
+      if (!connection) throw new Error('Database connection not found');
+      
+      const blob = await exportService.exportDatabase(id, options);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      const extension = {
+        sqlite: 'db',
+        sql: 'sql',
+        csv: 'csv',
+        json: 'json'
+      }[options.format];
+      
+      a.download = `${connection.name.replace(/\.[^.]+$/, '')}-${new Date().toISOString().split('T')[0]}.${extension}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Database exported as ${options.format.toUpperCase()}`);
     } catch (error) {
       console.error('Failed to export database:', error);
       toast.error('Failed to export database');
@@ -221,5 +252,54 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   
   setStructureActiveTab: (tab: string) => {
     set({ structureActiveTab: tab });
+  },
+  
+  setShowQueryPlan: (show: boolean) => {
+    set({ showQueryPlan: show });
+  },
+  
+  searchInDatabase: async (options: SearchOptions) => {
+    const { sqliteService, activeConnectionId } = get();
+    
+    if (!activeConnectionId) {
+      toast.error('No active database connection');
+      return;
+    }
+    
+    try {
+      const results = await sqliteService.searchInDatabase(activeConnectionId, options);
+      set({ searchResults: results });
+      toast.success(`Found ${results.length} results`);
+    } catch (error) {
+      console.error('Search failed:', error);
+      toast.error('Search failed');
+    }
+  },
+  
+  clearSearchResults: () => {
+    set({ searchResults: [] });
+  },
+  
+  getQueryTemplates: () => {
+    return get().queryTemplates;
+  },
+  
+  addQueryTemplate: (template: Omit<QueryTemplate, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { queryTemplateService } = get();
+    queryTemplateService.addTemplate(template);
+    const updatedTemplates = queryTemplateService.getTemplates();
+    set({ queryTemplates: updatedTemplates });
+    toast.success('Query template added');
+  },
+  
+  applyQueryTemplate: (templateId: string, variables: Record<string, any>) => {
+    const { queryTemplateService } = get();
+    try {
+      const query = queryTemplateService.applyTemplate(templateId, variables);
+      set({ currentQuery: query });
+    } catch (error) {
+      console.error('Failed to apply template:', error);
+      toast.error('Failed to apply template');
+    }
   },
 }));

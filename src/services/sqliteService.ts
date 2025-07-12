@@ -1,5 +1,5 @@
 import initSqlJs, { SqlJsStatic } from 'sql.js';
-import { DatabaseConnection, QueryResult, SchemaInfo, TableInfo, ColumnInfo } from '@/types/database';
+import { DatabaseConnection, QueryResult, SchemaInfo, TableInfo, ColumnInfo, QueryPlanStep, SearchOptions, SearchResult } from '@/types/database';
 import { generateUUID } from '@/utils/uuid';
 
 export class SQLiteService {
@@ -70,7 +70,7 @@ export class SQLiteService {
     }
   }
 
-  async executeQuery(databaseId: string, query: string): Promise<QueryResult> {
+  async executeQuery(databaseId: string, query: string, includeQueryPlan = false): Promise<QueryResult> {
     const connection = this.getDatabase(databaseId);
     if (!connection) {
       throw new Error('Database connection not found');
@@ -79,6 +79,12 @@ export class SQLiteService {
     const startTime = performance.now();
     
     try {
+      // Get query plan if requested
+      let queryPlan = undefined;
+      if (includeQueryPlan && query.trim().toUpperCase().startsWith('SELECT')) {
+        queryPlan = await this.getQueryPlan(databaseId, query);
+      }
+
       const stmt = connection.database.prepare(query);
       const columns = stmt.getColumnNames();
       const values: any[][] = [];
@@ -98,6 +104,7 @@ export class SQLiteService {
         values,
         rowCount: values.length,
         executionTime,
+        queryPlan,
       };
     } catch (error) {
       throw new Error(`Query execution failed: ${(error as Error).message}`);
@@ -273,5 +280,113 @@ export class SQLiteService {
     }
     
     return result;
+  }
+
+  async getQueryPlan(databaseId: string, query: string): Promise<QueryPlanStep[]> {
+    const connection = this.getDatabase(databaseId);
+    if (!connection) {
+      throw new Error('Database connection not found');
+    }
+
+    try {
+      const planQuery = `EXPLAIN QUERY PLAN ${query}`;
+      const stmt = connection.database.prepare(planQuery);
+      const planSteps: QueryPlanStep[] = [];
+      
+      while (stmt.step()) {
+        const row = stmt.get();
+        planSteps.push({
+          id: row[0] as number,
+          parent: row[1] as number,
+          notused: row[2] as number,
+          detail: row[3] as string,
+        });
+      }
+      
+      stmt.free();
+      return planSteps;
+    } catch (error) {
+      console.error('Failed to get query plan:', error);
+      return [];
+    }
+  }
+
+  async searchInDatabase(databaseId: string, options: SearchOptions): Promise<SearchResult[]> {
+    const connection = this.getDatabase(databaseId);
+    if (!connection) {
+      throw new Error('Database connection not found');
+    }
+
+    const results: SearchResult[] = [];
+    const { query, tables, columns, caseSensitive = false, wholeWord = false, limit = 100 } = options;
+
+    try {
+      // Get all tables if not specified
+      const targetTables = tables && tables.length > 0 ? tables : await this.getTableNames(databaseId);
+
+      for (const tableName of targetTables) {
+        const tableColumns = await this.getTableColumns(databaseId, tableName);
+        const targetColumns = columns && columns.length > 0 
+          ? tableColumns.filter(col => columns.includes(col.name))
+          : tableColumns;
+
+        for (const column of targetColumns) {
+          let searchQuery = `SELECT rowid, "${column.name}" FROM "${tableName}" WHERE `;
+          
+          if (caseSensitive) {
+            if (wholeWord) {
+              searchQuery += `"${column.name}" = ?`;
+            } else {
+              searchQuery += `"${column.name}" LIKE ?`;
+            }
+          } else {
+            if (wholeWord) {
+              searchQuery += `LOWER("${column.name}") = LOWER(?)`;
+            } else {
+              searchQuery += `LOWER("${column.name}") LIKE LOWER(?)`;
+            }
+          }
+
+          searchQuery += ` LIMIT ${limit - results.length}`;
+
+          try {
+            const stmt = connection.database.prepare(searchQuery);
+            stmt.bind([wholeWord ? query : `%${query}%`]);
+
+            while (stmt.step()) {
+              const row = stmt.get();
+              results.push({
+                table: tableName,
+                column: column.name,
+                rowId: row[0] as number,
+                value: row[1],
+                context: String(row[1]),
+              });
+
+              if (results.length >= limit) {
+                stmt.free();
+                return results;
+              }
+            }
+
+            stmt.free();
+          } catch (error) {
+            console.error(`Error searching in ${tableName}.${column.name}:`, error);
+          }
+        }
+      }
+
+      return results;
+    } catch (error) {
+      throw new Error(`Search failed: ${(error as Error).message}`);
+    }
+  }
+
+  private async getTableNames(databaseId: string): Promise<string[]> {
+    const result = await this.executeQuery(
+      databaseId,
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    );
+    return result.values.map(row => row[0] as string);
   }
 }

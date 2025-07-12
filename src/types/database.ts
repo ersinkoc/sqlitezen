@@ -22,6 +22,14 @@ export interface QueryResult {
   values: any[][];
   rowCount: number;
   executionTime: number;
+  queryPlan?: QueryPlanStep[];
+}
+
+export interface QueryPlanStep {
+  id: number;
+  parent: number;
+  notused: number;
+  detail: string;
 }
 
 export interface TableInfo {
@@ -85,4 +93,40 @@ export interface ImportOptions {
   headerRow?: boolean;
   delimiter?: string;
   encoding?: string;
+}
+
+export interface QueryTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  query: string;
+  variables?: QueryVariable[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface QueryVariable {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'date';
+  defaultValue?: any;
+  description?: string;
+}
+
+export interface SearchOptions {
+  query: string;
+  tables?: string[];
+  columns?: string[];
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  regex?: boolean;
+  limit?: number;
+}
+
+export interface SearchResult {
+  table: string;
+  column: string;
+  rowId: number;
+  value: any;
+  context?: string;
 }

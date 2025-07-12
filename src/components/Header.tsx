@@ -1,9 +1,10 @@
-import { Database, Moon, Sun, Menu, FileUp, Download, Upload, Info, Github, Play } from 'lucide-react';
+import { Database, Moon, Sun, Menu, FileUp, Download, Upload, Info, Github, Play, Search } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useDatabaseStore } from '@/store/databaseStore';
 import { useRef, useState, useEffect } from 'react';
 import { ImportExportDialog } from './ImportExportDialog';
 import { AboutDialog } from './AboutDialog';
+import { SearchDialog } from './SearchDialog';
 import { DemoDataService } from '@/services/demoDataService';
 import toast from 'react-hot-toast';
 
@@ -16,6 +17,7 @@ export function Header() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [demoMenuOpen, setDemoMenuOpen] = useState(false);
 
   const handleFileOpen = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,6 +120,14 @@ export function Header() {
                 <Download className="h-4 w-4" />
                 Export
               </button>
+              
+              <button
+                onClick={() => setSearchDialogOpen(true)}
+                className="px-3 py-1.5 text-sm hover:bg-accent rounded-md transition-colors flex items-center gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Search
+              </button>
             </>
           )}
           
@@ -212,6 +222,11 @@ export function Header() {
       <AboutDialog
         open={aboutDialogOpen}
         onOpenChange={setAboutDialogOpen}
+      />
+      
+      <SearchDialog
+        isOpen={searchDialogOpen}
+        onClose={() => setSearchDialogOpen(false)}
       />
     </header>
   );

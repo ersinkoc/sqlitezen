@@ -14,7 +14,7 @@ interface ImportExportDialogProps {
 }
 
 export function ImportExportDialog({ mode, open, onOpenChange }: ImportExportDialogProps) {
-  const { activeConnectionId, sqliteService } = useDatabaseStore();
+  const { activeConnectionId, sqliteService, exportDatabase } = useDatabaseStore();
   const [selectedFormat, setSelectedFormat] = useState<'sqlite' | 'sql' | 'csv' | 'json'>('sql');
   const [selectedTables] = useState<string[]>([]);
   const [includeSchema, setIncludeSchema] = useState(true);
@@ -40,8 +40,7 @@ export function ImportExportDialog({ mode, open, onOpenChange }: ImportExportDia
         includeData,
       };
 
-      await importExportService.exportDatabase(activeConnectionId, options);
-      toast.success(`Database exported as ${selectedFormat.toUpperCase()}`);
+      await exportDatabase(activeConnectionId, options);
       onOpenChange(false);
     } catch (error) {
       toast.error(`Export failed: ${(error as Error).message}`);
@@ -160,6 +159,7 @@ export function ImportExportDialog({ mode, open, onOpenChange }: ImportExportDia
                     <div className="text-xs text-muted-foreground">JavaScript Object Notation</div>
                   </div>
                 </button>
+
               </div>
             </div>
 

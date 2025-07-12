@@ -4,7 +4,7 @@ import { DataGrid } from './DataGrid';
 import { QueryHistory } from './QueryHistory';
 import { TableStructure } from './TableStructure';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
-import { Table2, History, Edit3, Database } from 'lucide-react';
+import { Table2, History, Edit3, Database, Activity } from 'lucide-react';
 
 export function ResultsPanel() {
   const [currentTableName, setCurrentTableName] = useState<string | null>(null);
@@ -51,6 +51,12 @@ export function ResultsPanel() {
               <Table2 className="h-4 w-4" />
               Results
             </TabsTrigger>
+            {latestResult?.queryPlan && (
+              <TabsTrigger value="queryPlan" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Query Plan
+              </TabsTrigger>
+            )}
             {currentTableName && latestResult && (
               <>
                 <TabsTrigger value="structure" className="flex items-center gap-2">
@@ -116,6 +122,60 @@ export function ResultsPanel() {
         
         <TabsContent value="history" className="flex-1 overflow-hidden m-0">
           <QueryHistory />
+        </TabsContent>
+        
+        <TabsContent value="queryPlan" className="flex-1 overflow-hidden m-0">
+          {latestResult?.queryPlan ? (
+            <div className="h-full overflow-auto">
+              <div className="p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Query Execution Plan</h3>
+                  <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                    <p className="mb-1"><strong>💡 What is this?</strong></p>
+                    <p>This shows how SQLite will execute your query step by step. Useful for optimizing slow queries.</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {latestResult.queryPlan.map((step, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border-l-2 border-primary/20"
+                      style={{ marginLeft: `${step.parent * 16}px` }}
+                    >
+                      <div className="text-xs text-primary font-mono bg-primary/10 px-2 py-1 rounded">
+                        Step {step.id}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm">{step.detail}</div>
+                        {step.detail.toLowerCase().includes('index') && (
+                          <div className="text-xs text-green-600 mt-1">✓ Using index (efficient)</div>
+                        )}
+                        {step.detail.toLowerCase().includes('scan') && !step.detail.toLowerCase().includes('index') && (
+                          <div className="text-xs text-yellow-600 mt-1">⚠ Table scan (may be slow on large tables)</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
+                  <p className="font-medium mb-1">Performance Tips:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Look for &quot;INDEX&quot; in steps - these are fast</li>
+                    <li>&quot;SCAN TABLE&quot; without index can be slow on large tables</li>
+                    <li>Consider adding indexes for frequently queried columns</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No query plan available</p>
+                <p className="text-xs mt-1">Enable &quot;Query Plan&quot; and run a SELECT query to see execution details</p>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

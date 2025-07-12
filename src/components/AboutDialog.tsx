@@ -103,7 +103,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
                 <p>
                   SQLite Zen is powered by <a href="https://www.sqlite.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
                     SQLite <ExternalLink className="h-3 w-3" />
-                  </a>, the world's most widely deployed database engine. SQLite is a C-language library that implements a small, fast, self-contained, high-reliability, full-featured SQL database engine.
+                  </a>, the world&apos;s most widely deployed database engine. SQLite is a C-language library that implements a small, fast, self-contained, high-reliability, full-featured SQL database engine.
                 </p>
                 <p>
                   This application uses <a href="https://github.com/sql-js/sql.js" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
