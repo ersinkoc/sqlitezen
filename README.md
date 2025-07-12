@@ -49,6 +49,8 @@ SQLite Zen is a full-featured SQLite database management system that runs entire
   - Error highlighting
   - Query history with timestamps
   - Execution time tracking
+  - **Query Templates**: Pre-built SQL templates with variable substitution
+  - **Query Plan Visualization**: Execution plan analysis for performance optimization
 
 ### 🎨 **User Interface**
 - **Modern Design**: Clean, intuitive interface
@@ -86,7 +88,7 @@ npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`.
+The application will be available at `http://localhost:54581`.
 
 ### Building for Production
 
@@ -147,7 +149,8 @@ sqlitezen/
 │   │   ├── sqliteService.ts    # SQLite operations
 │   │   ├── storageService.ts   # IndexedDB persistence
 │   │   ├── importExportService.ts # Data import/export
-│   │   └── queryService.ts     # Query execution
+│   │   ├── exportService.ts    # Multi-format data export
+│   │   └── queryTemplateService.ts # SQL template management
 │   ├── store/              # Application state
 │   │   ├── databaseStore.ts    # Database connections
 │   │   ├── editorStore.ts      # Editor state
@@ -160,6 +163,34 @@ sqlitezen/
 ├── tests/                  # Test files
 └── package.json           # Dependencies
 ```
+
+## 🧩 Query Templates
+
+SQLite Zen includes a comprehensive collection of pre-built SQL templates to accelerate your database work:
+
+### Template Categories
+
+**📝 Basic Operations**
+- **Select All**: Quick table data retrieval with parameterized table names
+- **Count Records**: Efficient record counting for any table
+
+**🔍 Analysis Templates**  
+- **Find Duplicates**: Identify duplicate values in any column with frequency counts
+- **Date Range Queries**: Filter records by date ranges with custom date columns
+
+**🏗️ Schema Management**
+- **Table Info**: Get detailed table structure using `PRAGMA table_info`
+- **Create Index**: Generate optimized indexes for better query performance
+
+### Using Templates
+
+1. Click the **Templates** button in the SQL editor toolbar
+2. Browse available templates by category
+3. Click on any template to use it
+4. Enter values for template variables when prompted
+5. The generated SQL appears in your editor ready to execute
+
+Templates support variable substitution using `{{variableName}}` syntax, making them flexible and reusable across different tables and scenarios.
 
 ## ⌨️ Keyboard Shortcuts
 
@@ -237,7 +268,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - [ ] Query performance analyzer
 - [ ] Advanced search across database content
 - [ ] Export to more formats (Excel, XML)
-- [ ] Query templates and snippets
 - [ ] Table relationships visualization
 - [ ] Data comparison tools
 
