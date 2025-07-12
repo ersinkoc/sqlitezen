@@ -10,6 +10,11 @@ Visit [sqlitezen.com](https://sqlitezen.com) to try the application.
 
 SQLite Zen is a full-featured SQLite database management system that runs entirely in your browser. It leverages WebAssembly to run SQLite directly in the browser, providing a desktop-like experience without any installation required.
 
+## 📸 Screenshot
+
+![SQLite Zen Interface](public/sqlitezen.jpg)
+*SQLite Zen's modern interface showing the SQL editor, query templates, and results panels*
+
 ## ✨ Key Features
 
 ### 📊 **Database Management**
