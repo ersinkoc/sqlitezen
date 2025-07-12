@@ -1,5 +1,6 @@
 import initSqlJs, { SqlJsStatic } from 'sql.js';
 import { DatabaseConnection, QueryResult, SchemaInfo, TableInfo, ColumnInfo } from '@/types/database';
+import { generateUUID } from '@/utils/uuid';
 
 export class SQLiteService {
   private static instance: SQLiteService;
@@ -39,7 +40,7 @@ export class SQLiteService {
       await this.initialize();
     }
 
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const database = data ? new this.SQL!.Database(data) : new this.SQL!.Database();
     
     const connection: DatabaseConnection = {

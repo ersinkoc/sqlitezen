@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { SQLiteService } from '@/services/sqliteService';
 import { StorageService } from '@/services/storageService';
 import { DatabaseConnection, QueryResult, QueryHistory } from '@/types/database';
+import { generateUUID } from '@/utils/uuid';
 import toast from 'react-hot-toast';
 
 interface DatabaseState {
@@ -124,7 +125,7 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
     }
 
     const historyEntry: QueryHistory = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       query,
       timestamp: Date.now(),
       databaseId: activeConnectionId,
