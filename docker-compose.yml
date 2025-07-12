@@ -1,0 +1,23 @@
+services:
+  sqlitezen:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sqlitezen
+    ports:
+      - "11080:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sqlitezen-network
+
+networks:
+  sqlitezen-network:
+    driver: bridge
