@@ -218,43 +218,44 @@ export function EditorPanel() {
                     <div
                       key={template.id}
                       className="p-4 bg-muted/50 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => {
+                      onClick={async () => {
                         const variables: Record<string, any> = {};
                         if (template.variables && template.variables.length > 0) {
-                          let cancelled = false;
-                          template.variables.forEach(v => {
-                            if (!cancelled) {
-                              const value = prompt(
-                                `Enter value for ${v.name}${v.description ? ` (${v.description})` : ''}:`, 
+                          for (const v of template.variables) {
+                            const value = await new Promise<string | null>((resolve) => {
+                              const val = prompt(
+                                `Enter value for ${v.name}${v.description ? ` (${v.description})` : ''}:`,
                                 v.defaultValue?.toString() || ''
                               );
-                              if (value === null) {
-                                cancelled = true;
-                              } else {
-                                variables[v.name] = value;
-                              }
+                              resolve(val);
+                            });
+
+                            if (value === null) {
+                              toast.error('Template application cancelled.');
+                              return;
                             }
-                          });
-                          if (cancelled) return;
+                            variables[v.name] = value;
+                          }
                         }
-                        
+
                         try {
                           applyQueryTemplate(template.id, variables);
                           setShowTemplates(false);
                         } catch (error) {
-                          // Fallback: manual template application
+                          // Fallback for manual template application if needed
                           let query = template.query;
                           if (template.variables) {
-                            template.variables.forEach(variable => {
+                            for (const variable of template.variables) {
                               const value = variables[variable.name];
                               if (value !== undefined) {
                                 const regex = new RegExp(`{{\\s*${variable.name}\\s*}}`, 'g');
                                 query = query.replace(regex, String(value));
                               }
-                            });
+                            }
                           }
                           setCurrentQuery(query);
                           setShowTemplates(false);
+                          toast.success('Template applied!');
                         }
                       }}
                     >
